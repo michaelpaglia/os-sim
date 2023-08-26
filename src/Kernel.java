@@ -16,4 +16,10 @@ public class Kernel {
     public static int CreateProcess(UserlandProcess up) {
         return pScheduler.CreateProcess(up);
     }
+    public static int CreateProcess(UserlandProcess up, Priority priority) {
+        return pScheduler.CreateProcess(up, priority);
+    }
+    public static void Sleep(int milliseconds) {
+        pScheduler.Sleep(milliseconds);
+    }
 }

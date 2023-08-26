@@ -4,6 +4,7 @@ public class KernelandProcess {
     private int processId;
     boolean isThreadStarted; // indicates whether thread has been started or not
     Thread pThread;
+    private Priority priority;
 
     /**
      * Constructs a KernelandProcess by instantiating a new thread,
@@ -15,6 +16,12 @@ public class KernelandProcess {
         this.processId = nextPid++;
         this.isThreadStarted = false;
     }
+    KernelandProcess(UserlandProcess up, Priority priority) {
+        this.pThread = new Thread(up);
+        this.priority = priority;
+        this.processId = nextPid++;
+        this.isThreadStarted = false;
+    }
 
     /**
      * Accesses the current process' PID
@@ -23,6 +30,10 @@ public class KernelandProcess {
     int getPid() {
         return this.processId;
     }
+
+    Priority getPriority() { return this.priority; }
+
+    void setPriority(Priority priority) { this.priority = priority; }
 
     /**
      * Resumes thread if already started, else, sets flag to true and starts thread
