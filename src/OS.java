@@ -1,5 +1,5 @@
 enum Priority {
-    HIGH, MEDIUM, LOW, INTERACTIVE
+    REALTIME, BACKGROUND, INTERACTIVE
 }
 public class OS {
     private static Kernel pKernel; // reference to one and only instance of Kernel
