@@ -2,19 +2,19 @@ import java.time.Instant;
 import java.util.*;
 
 public class Scheduler {
-    private List<KernelandProcess> realTimeKernelandProcess, backgroundKernelandProcess, interactivePriorityKernelandProcess;
-    private PriorityQueue<Map.Entry<KernelandProcess, Instant>> sleepingProcessList;
+    private final List<KernelandProcess> realTimeKernelandProcess, backgroundKernelandProcess, interactivePriorityKernelandProcess;
+    private final List<Map.Entry<KernelandProcess, Instant>> sleepingProcessList;
     private KernelandProcess currentKernelandProcess; // reference to KernelandProcess currently running
-    private Instant clock;
+    private final Instant clock;
 
     /**
      * Constructs a scheduler which holds a list of processes, a timer instance, and a scheduled interrupt every 250ms
      */
     public Scheduler() {
-        realTimeKernelandProcess = Collections.synchronizedList(new LinkedList<KernelandProcess>());
-        backgroundKernelandProcess = Collections.synchronizedList(new LinkedList<KernelandProcess>());
-        interactivePriorityKernelandProcess = Collections.synchronizedList(new LinkedList<KernelandProcess>());
-        sleepingProcessList = new PriorityQueue<>(Map.Entry.comparingByValue());
+        realTimeKernelandProcess = Collections.synchronizedList(new LinkedList<>());
+        backgroundKernelandProcess = Collections.synchronizedList(new LinkedList<>());
+        interactivePriorityKernelandProcess = Collections.synchronizedList(new LinkedList<>());
+        sleepingProcessList = new LinkedList<>();
         Timer timer = new Timer();
         timer.schedule(new Interrupt(), 250, 250); // as per assignment requirements (#1)
         clock = Instant.now(); // current UTC time
@@ -63,8 +63,8 @@ public class Scheduler {
     public synchronized void SwitchProcess() {
         // as long as there are sleeping items, check if the process' wake time is up and give chance to run
         synchronized (sleepingProcessList) {
-            while (!sleepingProcessList.isEmpty() && sleepingProcessList.peek().getValue().isBefore(Instant.now())) {
-                KernelandProcess awake = sleepingProcessList.remove().getKey(); // remove from sleeping processes and choose KernelandProcess
+            while (!sleepingProcessList.isEmpty() && sleepingProcessList.get(0).getValue().isBefore(Instant.now())) { // get returns a tuple
+                KernelandProcess awake = sleepingProcessList.remove(0).getKey(); // remove from sleeping processes and choose KernelandProcess
                 if (awake != null) {
                     awake.setTimeout(awake.getTimeout() + 1); // process ran to timeout, so we increment 1 to it's counter
                     // if process ran to timeout 5 times, we demote it
@@ -109,15 +109,15 @@ public class Scheduler {
      */
     private synchronized void DemoteProcess(KernelandProcess kernelandProcess) {
         switch (kernelandProcess.getPriority()) {
-            case REALTIME:
+            case REALTIME -> {
                 kernelandProcess.setPriority(Priority.INTERACTIVE);
                 interactivePriorityKernelandProcess.add(kernelandProcess);
-                break;
-            case INTERACTIVE:
+            }
+            case INTERACTIVE -> {
                 kernelandProcess.setPriority(Priority.BACKGROUND);
                 backgroundKernelandProcess.add(kernelandProcess);
-                break;
-            default: break;
+            }
+            default -> {}
         }
     }
     /**
@@ -126,26 +126,22 @@ public class Scheduler {
      */
     private synchronized void RunNextKernelandProcess(Priority priority) {
         switch (priority) {
-            case REALTIME:
+            case REALTIME -> {
                 if (!realTimeKernelandProcess.isEmpty()) {
                     KernelandProcess firstItemInList = realTimeKernelandProcess.remove(0); // first item
                     firstItemInList.run();
-                }
-                break;
-            case BACKGROUND:
+                }}
+            case BACKGROUND -> {
                 if (!backgroundKernelandProcess.isEmpty()) {
                     KernelandProcess firstItemInList = backgroundKernelandProcess.remove(0);
                     firstItemInList.run();
-                }
-                break;
-            case INTERACTIVE:
+                }}
+            case INTERACTIVE -> {
                 if (!interactivePriorityKernelandProcess.isEmpty()) {
                     KernelandProcess firstItemInList = interactivePriorityKernelandProcess.remove(0);
                     firstItemInList.run();
-                }
-                break;
-            default:
-                break;
+                }}
+            default -> {}
         }
     }
     /**

@@ -5,6 +5,9 @@ public class Main {
         //OS.Startup(hello);
         //OS.CreateProcess(goodbye);
         OS.Startup(new HelloWorld());
+        OS.Sleep(5000);
+
         OS.CreateProcess(new GoodbyeWorld(), Priority.REALTIME);
+        OS.Sleep(2500);
     }
 }

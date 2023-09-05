@@ -1,12 +1,10 @@
 @SuppressWarnings("ALL")
 public class KernelandProcess {
     private static int nextPid = 0;
-    private int processId;
+    private int processId, timeout;
     boolean isThreadStarted; // indicates whether thread has been started or not
     Thread pThread;
     private Priority priority;
-    private int timeout;
-
     /**
      * Constructs a KernelandProcess by instantiating a new thread,
      * incrementing the most recent process ID, and declaring it not yet started
@@ -15,7 +13,7 @@ public class KernelandProcess {
     KernelandProcess(UserlandProcess up) {
         this.pThread = new Thread(up);
         this.processId = nextPid++; // 1 -> 2 -> 3 (leading)
-        nextPid = this.processId;   // 1 -> 2      (lagging)
+        //nextPid = this.processId;   // 1 -> 2      (lagging)
         this.isThreadStarted = false;
         this.timeout = 0;
     }
@@ -23,7 +21,7 @@ public class KernelandProcess {
         this.pThread = new Thread(up);
         this.priority = priority;
         this.processId = nextPid++;
-        nextPid = this.processId;
+        //nextPid = this.processId;
         this.isThreadStarted = false;
         this.timeout = 0;
     }
