@@ -12,8 +12,7 @@ public class KernelandProcess {
      */
     KernelandProcess(UserlandProcess up) {
         this.pThread = new Thread(up);
-        this.processId = nextPid++; // 1 -> 2 -> 3 (leading)
-        //nextPid = this.processId;   // 1 -> 2      (lagging)
+        this.processId = nextPid++;
         this.isThreadStarted = false;
         this.timeout = 0;
     }
@@ -21,7 +20,6 @@ public class KernelandProcess {
         this.pThread = new Thread(up);
         this.priority = priority;
         this.processId = nextPid++;
-        //nextPid = this.processId;
         this.isThreadStarted = false;
         this.timeout = 0;
     }
