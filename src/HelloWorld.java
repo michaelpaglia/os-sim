@@ -3,7 +3,7 @@ public class HelloWorld extends UserlandProcess {
     public void run() {
         while (true) { // infinite loop as per assignment requirements
             System.out.println("Hello World");
-
+            OS.Sleep(100);
         }
     }
 }
