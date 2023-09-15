@@ -2,10 +2,11 @@ import java.time.Instant;
 import java.util.*;
 
 public class Scheduler {
-    private final List<KernelandProcess> realTimeKernelandProcess, backgroundKernelandProcess, interactivePriorityKernelandProcess;
+    private final List<KernelandProcess> realTimeKernelandProcess;
+    private final List<KernelandProcess> backgroundKernelandProcess;
+    private final List<KernelandProcess> interactivePriorityKernelandProcess;
     private final List<Map.Entry<KernelandProcess, Instant>> sleepingProcess;
     private KernelandProcess currentKernelandProcess; // reference to KernelandProcess currently running
-    private KernelandProcess process;
     private final Instant clock;
 
     /**
@@ -15,10 +16,9 @@ public class Scheduler {
         realTimeKernelandProcess = Collections.synchronizedList(new LinkedList<>());
         backgroundKernelandProcess = Collections.synchronizedList(new LinkedList<>());
         interactivePriorityKernelandProcess = Collections.synchronizedList(new LinkedList<>());
-        sleepingProcess = new LinkedList<>();
-        currentKernelandProcess = null;
+        sleepingProcess = Collections.synchronizedList(new LinkedList<>());
         Timer timer = new Timer();
-        timer.schedule(new Interrupt(), 250); // as per assignment requirements (#1)
+        timer.schedule(new Interrupt(), 250, 250); // as per assignment requirements (#1)
         clock = Instant.now(); // current UTC time
     }
 
@@ -39,7 +39,6 @@ public class Scheduler {
      */
     public int CreateProcess(UserlandProcess up, Priority priority) {
         KernelandProcess newProcess = new KernelandProcess(up, priority);
-        process = newProcess;
         AppendKernelandProcess(priority, newProcess);
         if (currentKernelandProcess == null) SwitchProcess();
         return newProcess.getPid();
@@ -61,32 +60,41 @@ public class Scheduler {
      * If something is running, process stops; if process didn't finish, adds to list of processes
      */
     public void SwitchProcess() {
-        if (currentKernelandProcess == null) currentKernelandProcess = process; // This probably isn't right
-        // put process onto correct queue
-        if (!currentKernelandProcess.isDone()) AppendKernelandProcess(currentKernelandProcess.getPriority(), currentKernelandProcess);
-        currentKernelandProcess.stop();
-        // choose a random queue to pick from and run next process from there
-        RunNextKernelandProcess(ChooseRandomPriority());
+        // as long as there are sleeping items, check if the process' wake time is up and give chance to run
+        while (!sleepingProcess.isEmpty() && sleepingProcess.get(0).getValue().isBefore(Instant.now())) { // get returns a tuple
+            KernelandProcess awake = sleepingProcess.remove(0).getKey(); // remove from sleeping processes and choose KernelandProcess
+            System.out.println("Awake process is adding to respective queue");
+            AppendKernelandProcess(awake.getPriority(), awake);
+        }
+        if (currentKernelandProcess != null) {
+            System.out.println("Current process is not null");
+            currentKernelandProcess.setTimeout(currentKernelandProcess.getTimeout() + 1);
+            if (currentKernelandProcess.getTimeout() == 5) DemoteProcess(currentKernelandProcess);
+            System.out.println("Stopping current process " + currentKernelandProcess);
+            currentKernelandProcess.stop();
+            System.out.println("Process is done: " + currentKernelandProcess.isDone());
+            if (!currentKernelandProcess.isDone()) AppendKernelandProcess(currentKernelandProcess.getPriority(), currentKernelandProcess);
+            System.out.println("Process list:" + interactivePriorityKernelandProcess);
+        }
+        RunRandomPriority();
     }
-
     /**
      * Chooses a random, valid priority value from the Priority enums
      * @return A random priority enum value; selection is based on probability model defined in assignment #2
      */
-    private Priority ChooseRandomPriority() {
+    private void RunRandomPriority() {
+        double probability = Math.random();
         if (!realTimeKernelandProcess.isEmpty()) {
-            //  If there are real-time processes, then 6/10 we will run a real-time process, 3/10 we will run an interactive process (if there is one) otherwise 1/10 we will run a background process.
-            double probability = Math.random();
-            if (probability <= 0.6) return Priority.REALTIME;
-            else if (probability <= 0.3 && !interactivePriorityKernelandProcess.isEmpty()) return Priority.INTERACTIVE;
-            else return Priority.BACKGROUND;
+            if (probability <= 0.6) RunNextKernelandProcess(Priority.REALTIME);
+            else if (probability <= 0.9 && !interactivePriorityKernelandProcess.isEmpty()) RunNextKernelandProcess(Priority.INTERACTIVE);
+            else RunNextKernelandProcess(Priority.BACKGROUND);
         } else if (!interactivePriorityKernelandProcess.isEmpty()) {
-            // ¾ run interactive and ¼ run background
-            double probability = Math.random();
-            if (probability <= 0.75) return Priority.INTERACTIVE;
-            else return Priority.BACKGROUND;
+            if (probability <= 0.75) RunNextKernelandProcess(Priority.INTERACTIVE);
+            else if (!backgroundKernelandProcess.isEmpty()) RunNextKernelandProcess(Priority.BACKGROUND);
+            else RunNextKernelandProcess(Priority.INTERACTIVE);
+        } else if (!backgroundKernelandProcess.isEmpty()) {
+            RunNextKernelandProcess(Priority.BACKGROUND);
         }
-        return Priority.BACKGROUND;
     }
 
     /**
@@ -94,6 +102,7 @@ public class Scheduler {
      * @param kp A certain KernelandProcess to demote down one priority
      */
     private void DemoteProcess(KernelandProcess kp) {
+        kp.setTimeout(0);
         switch (kp.getPriority()) {
             case REALTIME -> {
                 System.out.println("Demoting from REALTIME to Interactive");
@@ -105,7 +114,7 @@ public class Scheduler {
                 kp.setPriority(Priority.BACKGROUND);
                 backgroundKernelandProcess.add(kp);
             }
-            default -> {break;}
+            default -> { }
         }
     }
     /**
@@ -117,21 +126,30 @@ public class Scheduler {
             case REALTIME -> {
                 if (!realTimeKernelandProcess.isEmpty()) {
                     KernelandProcess firstItem = realTimeKernelandProcess.remove(0); // first item
+                    currentKernelandProcess = firstItem;
                     firstItem.run();
-                }}
+                }
+            }
             case BACKGROUND -> {
                 if (!backgroundKernelandProcess.isEmpty()) {
                     KernelandProcess firstItem = backgroundKernelandProcess.remove(0);
+                    currentKernelandProcess = firstItem;
                     firstItem.run();
-                }}
+                }
+            }
             case INTERACTIVE -> {
                 if (!interactivePriorityKernelandProcess.isEmpty()) {
+                    //System.out.println("Running interactive list");
                     KernelandProcess firstItem = interactivePriorityKernelandProcess.remove(0);
+                    currentKernelandProcess = firstItem;
+                    //System.out.println("First item in list: " + firstItem);
                     firstItem.run();
-                }}
-            default -> {break;}
+                }
+            }
+            default -> { }
         }
     }
+
     /**
      * Used to schedule an interrupt in Scheduler constructor
      */
@@ -146,25 +164,13 @@ public class Scheduler {
      */
     public void Sleep(int milliseconds) {
         // add to list of sleeping processes
+        currentKernelandProcess.setTimeout(0);
         sleepingProcess.add(new AbstractMap.SimpleEntry<>(currentKernelandProcess, clock.plusMillis(milliseconds)));
-        System.out.println("Added, switching process");
-        SwitchProcess();
-
-        // stop process from running in meantime
+        System.out.println("Putting process to sleep");
         var tmp = currentKernelandProcess;
         currentKernelandProcess = null;
-        System.out.println("It's hanging here before stop");
-        System.out.println("Process to stop " + tmp); // valid process
         tmp.stop();
-
-        // as long as there are sleeping items, check if the process' wake time is up and give chance to run
-        while (!sleepingProcess.isEmpty() && sleepingProcess.get(0).getValue().isBefore(Instant.now())) { // get returns a tuple
-            KernelandProcess awake = sleepingProcess.remove(0).getKey(); // remove from sleeping processes and choose KernelandProcess
-            awake.setTimeout(awake.getTimeout() + 1); // process ran to timeout, so we increment 1 to it's counter
-            // if process ran to timeout 5 times, we demote it
-            if (awake.getTimeout() == 5) DemoteProcess(awake);
-            awake.run();
-        }
+        //System.out.println("Switching process out of sleep");
+        SwitchProcess();
     }
-
 }

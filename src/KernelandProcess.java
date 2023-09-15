@@ -58,7 +58,7 @@ public class KernelandProcess {
      * Suspends thread if already started
      */
     void stop() {
-        if (isThreadStarted) pThread.stop();
+        if (isThreadStarted) pThread.suspend();
     }
 
     /**
