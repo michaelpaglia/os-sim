@@ -5,7 +5,7 @@ public class HelloWorld extends UserlandProcess {
             //System.out.println(" ");
             System.out.println("Hello World");
             //System.out.println(" ");
-            OS.Sleep(50);
+            OS.Sleep(250);
         }
     }
 }

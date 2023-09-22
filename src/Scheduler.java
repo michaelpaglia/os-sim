@@ -2,9 +2,7 @@ import java.time.Instant;
 import java.util.*;
 
 public class Scheduler {
-    private final List<KernelandProcess> realTimeKernelandProcess;
-    private final List<KernelandProcess> backgroundKernelandProcess;
-    private final List<KernelandProcess> interactivePriorityKernelandProcess;
+    private final List<KernelandProcess> realTimeKernelandProcess, backgroundKernelandProcess, interactivePriorityKernelandProcess;
     private final List<Map.Entry<KernelandProcess, Instant>> sleepingProcess;
     private KernelandProcess currentKernelandProcess; // reference to KernelandProcess currently running
     private final Instant clock;

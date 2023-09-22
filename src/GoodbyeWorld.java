@@ -5,7 +5,7 @@ public class GoodbyeWorld extends UserlandProcess {
             //System.out.println(" ");
             System.out.println("Goodbye World");
             //System.out.println(" ");
-            OS.Sleep(50);
+            OS.Sleep(250);
         }
     }
 }
