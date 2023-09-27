@@ -6,6 +6,7 @@ public class Scheduler {
     private final List<Map.Entry<KernelandProcess, Instant>> sleepingProcess;
     private KernelandProcess currentKernelandProcess; // reference to KernelandProcess currently running
     private final Instant clock;
+    private Kernel kernel;
 
     /**
      * Constructs a scheduler which holds a list of processes, a timer instance, and a scheduled interrupt every 250ms
@@ -40,9 +41,11 @@ public class Scheduler {
         KernelandProcess newProcess = new KernelandProcess(up, priority);
         AppendKernelandProcess(priority, newProcess);
         if (this.currentKernelandProcess == null) SwitchProcess();
-        return newProcess.getPid();
+        return newProcess.GetPID();
     }
-
+    KernelandProcess GetCurrentProcess() {
+        return this.currentKernelandProcess;
+    }
     /**
      * Adds a process to a specific priority queue
      * @param p A respective priority enum value
@@ -63,14 +66,17 @@ public class Scheduler {
         while (!sleepingProcess.isEmpty() && sleepingProcess.get(0).getValue().isBefore(Instant.now())) { // get returns a tuple
             KernelandProcess awake = sleepingProcess.remove(0).getKey(); // remove from sleeping processes and choose KernelandProcess
             //this.currentKernelandProcess = awake;
-            AppendKernelandProcess(awake.getPriority(), awake);
+            AppendKernelandProcess(awake.GetPriority(), awake);
         }
         if (this.currentKernelandProcess != null) {
-            this.currentKernelandProcess.setTimeout(this.currentKernelandProcess.getTimeout() + 1);
-            this.currentKernelandProcess.stop();
-            if (!this.currentKernelandProcess.isDone()) {
-                if (this.currentKernelandProcess.getTimeout() == 5) DemoteProcess(this.currentKernelandProcess);
-                else AppendKernelandProcess(this.currentKernelandProcess.getPriority(), this.currentKernelandProcess);
+            this.currentKernelandProcess.SetTimeout(this.currentKernelandProcess.GetTimeout() + 1);
+            this.currentKernelandProcess.Stop();
+            if (!this.currentKernelandProcess.IsDone()) {
+                if (this.currentKernelandProcess.GetTimeout() == 5) DemoteProcess(this.currentKernelandProcess);
+                else AppendKernelandProcess(this.currentKernelandProcess.GetPriority(), this.currentKernelandProcess);
+            } else {
+                // Close all of its open devices
+                kernel.CloseAll();
             }
         }
         RunRandomPriority();
@@ -98,16 +104,16 @@ public class Scheduler {
      * @param kp A certain KernelandProcess to demote down one priority
      */
     private void DemoteProcess(KernelandProcess kp) {
-        kp.setTimeout(0);
-        switch (kp.getPriority()) {
+        kp.SetTimeout(0);
+        switch (kp.GetPriority()) {
             case REALTIME -> {
                 System.out.println("Demoting from REALTIME to Interactive");
-                kp.setPriority(Priority.INTERACTIVE);
+                kp.SetPriority(Priority.INTERACTIVE);
                 interactivePriorityKernelandProcess.add(kp);
             }
             case INTERACTIVE -> {
                 System.out.println("Demoting from INTERACTIVE to BACKGROUND");
-                kp.setPriority(Priority.BACKGROUND);
+                kp.SetPriority(Priority.BACKGROUND);
                 backgroundKernelandProcess.add(kp);
             }
             default -> {}
@@ -122,19 +128,19 @@ public class Scheduler {
             case REALTIME -> {
                 KernelandProcess firstItem = realTimeKernelandProcess.remove(0); // first item
                 this.currentKernelandProcess = firstItem;
-                firstItem.run();
+                firstItem.Run();
             }
             case BACKGROUND -> {
                 KernelandProcess firstItem = backgroundKernelandProcess.remove(0);
                 this.currentKernelandProcess = firstItem;
-                firstItem.run();
+                firstItem.Run();
             }
             case INTERACTIVE -> {
                 //System.out.println("Running interactive list");
                 KernelandProcess firstItem = interactivePriorityKernelandProcess.remove(0);
                 this.currentKernelandProcess = firstItem;
                 //System.out.println("First item in list: " + firstItem);
-                firstItem.run();
+                firstItem.Run();
             }
             default -> { }
         }
@@ -154,13 +160,13 @@ public class Scheduler {
      */
     public synchronized void Sleep(int milliseconds) {
         // add to list of sleeping processes
-        this.currentKernelandProcess.setTimeout(0);
+        this.currentKernelandProcess.SetTimeout(0);
         sleepingProcess.add(new AbstractMap.SimpleEntry<>(this.currentKernelandProcess, clock.plusMillis(milliseconds)));
-        Collections.sort(sleepingProcess, Comparator.comparing(Map.Entry::getValue)); // sort the list in the order of wake-up time
+        sleepingProcess.sort(Map.Entry.comparingByValue()); // sort the list in the order of wake-up time
         var tmp = this.currentKernelandProcess;
         //System.out.println(tmp);
         this.currentKernelandProcess = null;
-        tmp.stop();
+        tmp.Stop();
         SwitchProcess();
     }
 }

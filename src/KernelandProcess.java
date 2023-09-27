@@ -1,3 +1,5 @@
+import java.util.Arrays;
+
 @SuppressWarnings("ALL")
 public class KernelandProcess {
     private static int nextPid = 0;
@@ -5,6 +7,7 @@ public class KernelandProcess {
     boolean isThreadStarted; // indicates whether thread has been started or not
     Thread pThread;
     private Priority priority;
+    private final int[] kernelEntries;
     /**
      * Constructs a KernelandProcess by instantiating a new thread,
      * incrementing the most recent process ID, and declaring it not yet started
@@ -15,6 +18,8 @@ public class KernelandProcess {
         this.processId = nextPid++;
         this.isThreadStarted = false;
         this.timeout = 0;
+        this.kernelEntries = new int[10];
+        Arrays.fill(kernelEntries, -1); // Fill array with empty entries
     }
     KernelandProcess(UserlandProcess up, Priority priority) {
         this.pThread = new Thread(up);
@@ -22,28 +27,24 @@ public class KernelandProcess {
         this.processId = nextPid++;
         this.isThreadStarted = false;
         this.timeout = 0;
+        this.kernelEntries = new int[10];
+        Arrays.fill(kernelEntries, -1); // Fill array with empty entries
     }
+    int[] GetKernelEntries() { return this.kernelEntries; }
+    void SetKernelEntries(int index, int val) { this.kernelEntries[index] = val; }
+    int GetPID() { return this.processId;}
+    Priority GetPriority() { return this.priority; }
 
-    /**
-     * Accesses the current process' PID
-     * @return Given PID
-     */
-    int getPid() {
-        return this.processId;
-    }
+    void SetPriority(Priority priority) { this.priority = priority; }
 
-    Priority getPriority() { return this.priority; }
+    int GetTimeout() { return this.timeout; }
 
-    void setPriority(Priority priority) { this.priority = priority; }
-
-    int getTimeout() { return this.timeout; }
-
-    void setTimeout(int timeout) { this.timeout = timeout; }
+    void SetTimeout(int timeout) { this.timeout = timeout; }
 
     /**
      * Resumes thread if already started, else, sets flag to true and starts thread
      */
-    void run() {
+    void Run() {
         if (isThreadStarted) {
             // already started, so resume
             pThread.resume();
@@ -57,7 +58,7 @@ public class KernelandProcess {
     /**
      * Suspends thread if already started
      */
-    void stop() {
+    void Stop() {
         if (isThreadStarted) pThread.suspend();
     }
 
@@ -65,7 +66,7 @@ public class KernelandProcess {
      * Flags whether thread is already started and is not alive (completed)
      * @return True if thread is already started and is not alive
      */
-    boolean isDone() {
+    boolean IsDone() {
         return isThreadStarted && !pThread.isAlive();
     }
 }
