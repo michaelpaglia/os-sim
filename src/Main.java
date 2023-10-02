@@ -1,9 +1,7 @@
 public class Main {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         OS.Startup(new HelloWorld());
         OS.CreateProcess(new GoodbyeWorld(), Priority.REALTIME);
-        OS.CreateProcess(new HelloWorld(), Priority.BACKGROUND);
-        OS.CreateProcess(new GoodbyeWorld(), Priority.INTERACTIVE);
-        OS.CreateProcess(new HelloWorld(), Priority.REALTIME);
+
     }
 }

@@ -6,7 +6,16 @@ public class Scheduler {
     private final List<Map.Entry<KernelandProcess, Instant>> sleepingProcess;
     private KernelandProcess currentKernelandProcess; // reference to KernelandProcess currently running
     private final Instant clock;
-    private Kernel kernel;
+    // what to set this to
+    private static Kernel kernel;
+
+    static {
+        try {
+            kernel = new Kernel();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     /**
      * Constructs a scheduler which holds a list of processes, a timer instance, and a scheduled interrupt every 250ms
@@ -43,7 +52,7 @@ public class Scheduler {
         if (this.currentKernelandProcess == null) SwitchProcess();
         return newProcess.GetPID();
     }
-    KernelandProcess GetCurrentProcess() {
+    public synchronized KernelandProcess GetCurrentProcess() {
         return this.currentKernelandProcess;
     }
     /**
@@ -65,7 +74,6 @@ public class Scheduler {
         // as long as there are sleeping items, check if the process' wake time is up and give chance to run
         while (!sleepingProcess.isEmpty() && sleepingProcess.get(0).getValue().isBefore(Instant.now())) { // get returns a tuple
             KernelandProcess awake = sleepingProcess.remove(0).getKey(); // remove from sleeping processes and choose KernelandProcess
-            //this.currentKernelandProcess = awake;
             AppendKernelandProcess(awake.GetPriority(), awake);
         }
         if (this.currentKernelandProcess != null) {
@@ -74,9 +82,13 @@ public class Scheduler {
             if (!this.currentKernelandProcess.IsDone()) {
                 if (this.currentKernelandProcess.GetTimeout() == 5) DemoteProcess(this.currentKernelandProcess);
                 else AppendKernelandProcess(this.currentKernelandProcess.GetPriority(), this.currentKernelandProcess);
-            } else {
+            } else { // process is done so close its open devices
                 // Close all of its open devices
-                kernel.CloseAll();
+                int[] entries = this.currentKernelandProcess.GetKernelEntries();
+                System.out.println("Process ended, closing open entries");
+                for (int i=0; i<10; i++) {
+                    if (entries[i] != -1) kernel.Close(i);
+                }
             }
         }
         RunRandomPriority();

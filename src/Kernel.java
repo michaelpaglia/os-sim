@@ -1,12 +1,12 @@
 public class Kernel implements Device {
-    static Scheduler pScheduler;
-    private VirtualFileSystem VFS = new VirtualFileSystem();
-
+    private static Scheduler pScheduler;
+    private static VirtualFileSystem VFS;
     /**
      * Constructs a new scheduler
      */
-    public Kernel() {
+    public Kernel() throws Exception {
         pScheduler = new Scheduler();
+        VFS = new VirtualFileSystem();
     }
 
     /**
@@ -32,17 +32,19 @@ public class Kernel implements Device {
      */
     @Override
     public int Open(String s) {
-        int[] entries = pScheduler.GetCurrentProcess().GetKernelEntries();
+        KernelandProcess kp = pScheduler.GetCurrentProcess();
+        int[] entries = kp.GetKernelEntries();
         for (int i=0; i<10; i++) {
             if (entries[i] == -1) {
                 int openId = VFS.Open(s);
                 if (openId == -1) return -1;
                 // Put ID from VFS into KernelandProcess' array
-                pScheduler.GetCurrentProcess().SetKernelEntries(i, openId);
-                return i;
+                kp.SetKernelEntries(i, openId);
+                if (openId == -1) pScheduler.SwitchProcess();
+                return openId;
             }
         }
-        return -1; // No empty entry available
+        return -1; // No entry available
     }
 
     /**
@@ -52,14 +54,12 @@ public class Kernel implements Device {
      */
     @Override
     public void Close(int id) {
-        int[] entries = pScheduler.GetCurrentProcess().GetKernelEntries();
-        VFS.Close(entries[id]);
-        pScheduler.GetCurrentProcess().SetKernelEntries(entries[id], -1);
-    }
-
-    public void CloseAll() {
-        int[] entries = pScheduler.GetCurrentProcess().GetKernelEntries();
-        for (int i=0; i<10; i++) { if (entries[i] != -1) Close(i); }
+        KernelandProcess kp = pScheduler.GetCurrentProcess();
+        int[] entries = kp.GetKernelEntries();
+        if (entries[id] != -1) {
+            VFS.Close(id);
+            kp.SetKernelEntries(id, -1);
+        }
     }
 
     /**
@@ -71,7 +71,9 @@ public class Kernel implements Device {
     @Override
     public byte[] Read(int id, int size) {
         int[] entries = pScheduler.GetCurrentProcess().GetKernelEntries();
-        return VFS.Read(entries[id], size);
+        if (entries[id] == -1) return new byte[0];
+        System.out.println("id " + id);
+        return VFS.Read(id, size);
     }
 
     /**
@@ -93,6 +95,8 @@ public class Kernel implements Device {
     @Override
     public int Write(int id, byte[] data) {
         int[] entries = pScheduler.GetCurrentProcess().GetKernelEntries();
-        return VFS.Write(entries[id], data);
+        System.out.println("Kernel write to id " + entries[id]);
+        if (entries[id] == -1) return 0;
+        return VFS.Write(id, data);
     }
 }

@@ -1,12 +1,14 @@
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.Arrays;
 
 public class FakeFileSystem implements Device {
     private final RandomAccessFile[] fakeFile;
     public FakeFileSystem(String filename) throws Exception {
         if (filename == null || filename.isEmpty()) throw new Exception("File name is null or empty");
         this.fakeFile = new RandomAccessFile[10];
+        Arrays.fill(fakeFile, null);
     }
 
     /**
@@ -16,14 +18,20 @@ public class FakeFileSystem implements Device {
      */
     @Override
     public int Open(String s) {
+        System.out.println("Opening fake file, finding location");
         for (int i=0; i<10; i++) {
             if (fakeFile[i] == null) {
                 // already check filename to see if it is null or empty
-                try { fakeFile[i] = new RandomAccessFile(s, "rw"); }
+                try {
+                    // after second iteration, file location is still 0
+                    fakeFile[i] = new RandomAccessFile(s, "rw");
+                    System.out.println("Fake file location " + i);
+                    return i;
+                }
                 catch (FileNotFoundException e) { throw new RuntimeException(e); }
-                return i;
             }
         }
+        System.out.println("Fake File: no entries available");
         return -1;
     }
 
@@ -33,7 +41,11 @@ public class FakeFileSystem implements Device {
      */
     @Override
     public void Close(int id) {
-        try { fakeFile[id].close(); }
+        System.out.println("Closing fake file at id " + id);
+        try {
+            fakeFile[id].close();
+            fakeFile[id] = null;
+        }
         catch (IOException e) { throw new RuntimeException(e); }
     }
 
@@ -45,10 +57,11 @@ public class FakeFileSystem implements Device {
      */
     @Override
     public byte[] Read(int id, int size) {
+        System.out.println("Reading from fake file at id " + id);
         byte[] create = new byte[size];
         try {
             if (fakeFile[id].read(create) > 0) return create; // not end of the file
-            else return null;
+            return null;
         }
         catch (IOException e) { throw new RuntimeException(e); }
     }
@@ -72,8 +85,10 @@ public class FakeFileSystem implements Device {
      */
     @Override
     public int Write(int id, byte[] data) {
+        System.out.println("Writing to a fake file " + id + " " + fakeFile[id]); // this is the problem... it will always be 0
         try {
             fakeFile[id].write(data);
+            System.out.println("Wrote " + data.length + " bytes to fake file");
             return data.length;
         }
         catch (IOException e) { throw new RuntimeException(e); }
