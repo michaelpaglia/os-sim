@@ -40,7 +40,7 @@ public class Kernel implements Device {
                 if (openId == -1) return -1;
                 // Put ID from VFS into KernelandProcess' array
                 kp.SetKernelEntries(i, openId);
-                if (openId == -1) pScheduler.SwitchProcess();
+                if (openId == -1);
                 return openId;
             }
         }
@@ -72,7 +72,7 @@ public class Kernel implements Device {
     public byte[] Read(int id, int size) {
         int[] entries = pScheduler.GetCurrentProcess().GetKernelEntries();
         if (entries[id] == -1) return new byte[0];
-        System.out.println("id " + id);
+        System.out.print("Kernel read to id " + id);
         return VFS.Read(id, size);
     }
 

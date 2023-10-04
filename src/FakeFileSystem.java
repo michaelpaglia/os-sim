@@ -58,12 +58,16 @@ public class FakeFileSystem implements Device {
     @Override
     public byte[] Read(int id, int size) {
         System.out.println("Reading from fake file at id " + id);
-        byte[] create = new byte[size];
-        try {
-            if (fakeFile[id].read(create) > 0) return create; // not end of the file
-            return null;
+        synchronized (this.fakeFile){
+            byte[] create = new byte[size];
+            try {
+                System.out.println("Reading " + size + " bytes from fake file system");
+                if (fakeFile[id].read(create) > 0) return create; // not end of the file
+                return null;
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
-        catch (IOException e) { throw new RuntimeException(e); }
     }
 
     /**

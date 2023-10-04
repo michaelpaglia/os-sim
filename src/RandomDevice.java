@@ -19,7 +19,7 @@ public class RandomDevice implements Device {
             if (randomDevice[i] == null) {
                 if (s != null) randomDevice[i] = new Random(Integer.parseInt(s));
                 else randomDevice[i] = new Random();
-                System.out.print("Opened random device at random device index " + i);
+                System.out.print("Opened random device at random device index " + i + "\n");
                 return i;
             }
         }
@@ -45,11 +45,13 @@ public class RandomDevice implements Device {
      */
     @Override
     public byte[] Read(int id, int size) {
-        System.out.println("Reading from random device at id " + id);
-        byte[] create = new byte[size];
-        randomDevice[id].nextBytes(create);
-        System.out.println("Created random device byte array of size " + size + " " + create);
-        return create;
+        synchronized (this.randomDevice) {
+            System.out.println("Reading from random device at id " + id);
+            byte[] create = new byte[size];
+            randomDevice[id].nextBytes(create);
+            System.out.println("Created random device byte array of size " + size + " " + create);
+            return create;
+        }
     }
 
     /**

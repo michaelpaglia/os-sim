@@ -21,32 +21,36 @@ public class VirtualFileSystem implements Device {
      * @return Index of opened device entry, -1 if invalid input
      */
     @Override
-    public synchronized int Open(String s) {
-        String[] arr = s.split(" ", 2);
-        if (arr[0].equals("random")) {
-            System.out.println("Opening Random from VFS for file " + arr[1]);
-            for (int i = 0; i < 10; i++) {
-                if (this.device[i] == null && this.id[i] == -1) {
-                    System.out.println("Calling random device from VFS at index " + i);
-                    this.device[i] = rd;
-                    this.id[i] = i;
-                    return this.device[i].Open(arr[1]);
-                }
-            }
-        } else if (arr[0].equals("file")) {
-            System.out.println("Opening Fake File System from VFS for file " + arr[1]);
-            for (int i = 0; i < 10; i++) {
-                if (this.device[i] == null && this.id[i] == -1) {
-                    try {
-                        System.out.println("Calling fake file at index " + i);
-                        this.device[i] = ffs;
+    public int Open(String s) {
+        synchronized (this.device) {
+            String[] arr = s.split(" ", 2);
+            if (arr[0].equals("random")) {
+                System.out.println("Opening Random from VFS for file " + arr[1]);
+                for (int i = 0; i < 10; i++) {
+                    if (this.device[i] == null && this.id[i] == -1) {
+                        System.out.println("------Calling random device from VFS at index " + i + "------\n");
+                        this.device[i] = rd;
                         this.id[i] = i;
                         return this.device[i].Open(arr[1]);
-                    } catch (Exception e) { throw new RuntimeException(e); }
+                    }
+                }
+            } else if (arr[0].equals("file")) {
+                System.out.println("Opening Fake File System from VFS for file " + arr[1]);
+                for (int i = 0; i < 10; i++) {
+                    if (this.device[i] == null && this.id[i] == -1) {
+                        try {
+                            System.out.println("------Calling fake file at index " + i + "------\n");
+                            this.device[i] = ffs;
+                            this.id[i] = i;
+                            return this.device[i].Open(arr[1]);
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
                 }
             }
         }
-        System.out.println("VFS: No entries available to open");
+        System.out.println("------------VFS: No entries available to open------------");
         return -1;
     }
 
@@ -57,7 +61,8 @@ public class VirtualFileSystem implements Device {
     @Override
     public void Close(int id) {
         System.out.println("VFS closing id " + id);
-        if (this.device[id] != null) this.device[id].Close(id);
+        int newId = this.id[id];
+        if (this.device[id] != null) this.device[newId].Close(id);
         this.device[id] = null;
         this.id[id] = -1;
     }
@@ -70,10 +75,13 @@ public class VirtualFileSystem implements Device {
      */
     @Override
     public byte[] Read(int id, int size) {
-        System.out.println("VFS reading at id " + id);
-        int newId = this.id[id];
-        if (newId == -1) return new byte[0];
-        return this.device[newId].Read(id, size);
+        System.out.println("VFS reading at id " + id + "\n");
+        synchronized (this.device) {
+            int newId = this.id[id];
+            System.out.print("This device: " + this.device[id] + "\n");
+            if (newId == -1) return new byte[0];
+            return this.device[newId].Read(id, size);
+        }
     }
 
     /**
@@ -96,9 +104,11 @@ public class VirtualFileSystem implements Device {
     @Override
     public int Write(int id, byte[] data) {
         System.out.println("VFS writing at id " + id);
-        int newId = this.id[id];
-        Device dev = this.device[id];
-        if (newId == -1) return 0;
-        return dev.Write(newId, data);
+        synchronized (this.device) {
+            int newId = this.id[id];
+            Device dev = this.device[id];
+            if (newId == -1) return 0;
+            return dev.Write(newId, data);
+        }
     }
 }
