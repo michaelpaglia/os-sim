@@ -32,4 +32,27 @@ public class OS {
     public static byte[] Read(int id, int size) { return pKernel.Read(id, size); }
     public static void Seek(int id, int to) { pKernel.Seek(id, to); }
     public static void Write(int id, byte[] data) { pKernel.Write(id, data); }
+
+    /**
+     * Returns the current process PID
+     * @return PID of the current process
+     */
+    public static int GetPid() {
+        return pKernel.GetPid();
+    }
+
+    /**
+     * Returns the PID of the process with that name
+     * @param name Name of the process
+     * @return PID of the process with that name
+     */
+    public static int GetPidByName(String name) {
+        return pKernel.GetPidByName(name);
+    }
+    public static void SendMessage(KernelMessage km) {
+        pKernel.SendMessage(km);
+    }
+    public static KernelMessage WaitForMessage() {
+        return pKernel.WaitForMessage();
+    }
 }

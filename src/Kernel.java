@@ -8,7 +8,6 @@ public class Kernel implements Device {
         pScheduler = new Scheduler();
         VFS = new VirtualFileSystem();
     }
-
     /**
      * Calls Scheduler's CreateProcess()
      * @param up Create a new UserlandProcess
@@ -40,7 +39,6 @@ public class Kernel implements Device {
                 if (openId == -1) return -1;
                 // Put ID from VFS into KernelandProcess' array
                 kp.SetKernelEntries(i, openId);
-                if (openId == -1);
                 return openId;
             }
         }
@@ -50,7 +48,7 @@ public class Kernel implements Device {
     /**
      * Uses KernelandProcess array to convert to valid ID for VFS.Close(id)
      * Sets id in KernelandProcess array to -1 (empty slot)
-     * @param id
+     * @param id Id of the entry to close
      */
     @Override
     public void Close(int id) {
@@ -72,7 +70,6 @@ public class Kernel implements Device {
     public byte[] Read(int id, int size) {
         int[] entries = pScheduler.GetCurrentProcess().GetKernelEntries();
         if (entries[id] == -1) return new byte[0];
-        System.out.print("Kernel read to id " + id);
         return VFS.Read(id, size);
     }
 
@@ -98,5 +95,48 @@ public class Kernel implements Device {
         System.out.println("Kernel write to id " + entries[id]);
         if (entries[id] == -1) return 0;
         return VFS.Write(id, data);
+    }
+    /**
+     * Returns the PID of the process
+     * @return PID of the process
+     */
+    public int GetPid() {
+        return pScheduler.GetPid();
+    }
+    /**
+     * Returns the PID of the process with that name
+     * @param s Name of the process
+     * @return PID of the process with that name
+     */
+    public int GetPidByName(String s) {
+        return pScheduler.GetPidByName(s);
+    }
+
+    /**
+     * Uses the constructor to make a copy of the original message and populates the sender's pid
+     * Finds the target's KernelandProcess
+     * If target's KernelandProcess pid is found, add to message queue
+     * If KernelandProcess is waiting for a message, restore to its proper runnable queue
+     * @param km KernelMessage to make a copy of
+     */
+    public void SendMessage(KernelMessage km) {
+        KernelMessage copy = new KernelMessage(km);
+        KernelandProcess target = pScheduler.GetProcessByPid(copy.targetPid);
+        target.kernelMessage.add(copy);
+        if (pScheduler.IsWaiting(target)) pScheduler.RestoreWaitingProcess(target);
+    }
+
+    /**
+     * Checks to see if current process has a message
+     * If so, returns the message off the queue; else, add process to new data structure to hold "waiting" processes
+     * @return KernelMessage if the current process has a message
+     */
+    public KernelMessage WaitForMessage() {
+        if (!pScheduler.GetCurrentProcess().kernelMessage.isEmpty()) {
+            return pScheduler.GetCurrentProcess().kernelMessage.remove(0);
+        }
+        if (pScheduler.GetCurrentProcess() != null) pScheduler.AppendWaitingProcesses();
+
+        return null;
     }
 }

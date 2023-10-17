@@ -5,10 +5,11 @@ public class Scheduler {
     private final List<KernelandProcess> realTimeKernelandProcess, backgroundKernelandProcess, interactivePriorityKernelandProcess;
     private final List<Map.Entry<KernelandProcess, Instant>> sleepingProcess;
     private KernelandProcess currentKernelandProcess; // reference to KernelandProcess currently running
+    private final Map<String, Integer> nameIdMapping;
+    private final Map<Integer, KernelandProcess> processIdMapping;
+    private final Map<Integer, KernelandProcess> waitingProcess;
     private final Instant clock;
-    // what to set this to
-    private static Kernel kernel;
-
+    private static final Kernel kernel;
     static {
         try {
             kernel = new Kernel();
@@ -25,6 +26,9 @@ public class Scheduler {
         backgroundKernelandProcess = Collections.synchronizedList(new LinkedList<>());
         interactivePriorityKernelandProcess = Collections.synchronizedList(new LinkedList<>());
         sleepingProcess = Collections.synchronizedList(new LinkedList<>());
+        nameIdMapping = Collections.synchronizedMap(new HashMap<>());
+        processIdMapping = Collections.synchronizedMap(new HashMap<>());
+        waitingProcess = Collections.synchronizedMap(new HashMap<>());
         currentKernelandProcess = null;
         Timer timer = new Timer();
         timer.schedule(new Interrupt(), 250, 250); // as per assignment requirements (#1)
@@ -49,8 +53,10 @@ public class Scheduler {
     public int CreateProcess(UserlandProcess up, Priority priority) {
         KernelandProcess newProcess = new KernelandProcess(up, priority);
         AppendKernelandProcess(priority, newProcess);
+        this.nameIdMapping.put(newProcess.GetName(), newProcess.GetPid());
+        this.processIdMapping.put(newProcess.GetPid(), newProcess);
         if (this.currentKernelandProcess == null) SwitchProcess();
-        return newProcess.GetPID();
+        return newProcess.GetPid();
     }
     public synchronized KernelandProcess GetCurrentProcess() {
         return this.currentKernelandProcess;
@@ -62,7 +68,7 @@ public class Scheduler {
      */
     private void AppendKernelandProcess(Priority p, KernelandProcess kp) {
         switch (p) {
-            case REALTIME -> realTimeKernelandProcess.add(kp);
+            case REALTIME ->  realTimeKernelandProcess.add(kp);
             case BACKGROUND -> backgroundKernelandProcess.add(kp);
             case INTERACTIVE -> interactivePriorityKernelandProcess.add(kp);
         }
@@ -79,11 +85,14 @@ public class Scheduler {
         if (this.currentKernelandProcess != null) {
             this.currentKernelandProcess.SetTimeout(this.currentKernelandProcess.GetTimeout() + 1);
             this.currentKernelandProcess.Stop();
+
             if (!this.currentKernelandProcess.IsDone()) {
                 if (this.currentKernelandProcess.GetTimeout() == 5) DemoteProcess(this.currentKernelandProcess);
                 else AppendKernelandProcess(this.currentKernelandProcess.GetPriority(), this.currentKernelandProcess);
             } else { // process is done so close its open devices
                 // Close all of its open devices
+                this.nameIdMapping.remove(this.currentKernelandProcess.GetName());
+                this.processIdMapping.remove(this.currentKernelandProcess.GetPid());
                 int[] entries = this.currentKernelandProcess.GetKernelEntries();
                 System.out.println("Process ended, closing open entries");
                 for (int i=0; i<10; i++) {
@@ -119,16 +128,16 @@ public class Scheduler {
         kp.SetTimeout(0);
         switch (kp.GetPriority()) {
             case REALTIME -> {
-                System.out.println("Demoting from REALTIME to Interactive");
+                //System.out.println("Demoting from REALTIME to Interactive");
                 kp.SetPriority(Priority.INTERACTIVE);
                 interactivePriorityKernelandProcess.add(kp);
             }
             case INTERACTIVE -> {
-                System.out.println("Demoting from INTERACTIVE to BACKGROUND");
+                //System.out.println("Demoting from INTERACTIVE to BACKGROUND");
                 kp.SetPriority(Priority.BACKGROUND);
                 backgroundKernelandProcess.add(kp);
             }
-            default -> {}
+            default -> backgroundKernelandProcess.add(kp);
         }
     }
     /**
@@ -148,10 +157,8 @@ public class Scheduler {
                 firstItem.Run();
             }
             case INTERACTIVE -> {
-                //System.out.println("Running interactive list");
                 KernelandProcess firstItem = interactivePriorityKernelandProcess.remove(0);
                 this.currentKernelandProcess = firstItem;
-                //System.out.println("First item in list: " + firstItem);
                 firstItem.Run();
             }
             default -> { }
@@ -180,5 +187,42 @@ public class Scheduler {
         this.currentKernelandProcess = null;
         tmp.Stop();
         SwitchProcess();
+    }
+    public void AppendWaitingProcesses() {
+        this.currentKernelandProcess.SetTimeout(0);
+        waitingProcess.put(this.currentKernelandProcess.GetPid(), this.currentKernelandProcess);
+        SwitchProcess();
+    }
+    public boolean IsWaiting(KernelandProcess kp) {
+        return waitingProcess.containsValue(kp);
+    }
+    public void RestoreWaitingProcess(KernelandProcess kp) {
+        KernelandProcess waiting = waitingProcess.remove(kp.GetPid());
+        AppendKernelandProcess(waiting.GetPriority(), waiting);
+        SwitchProcess();
+    }
+    /**
+     * Returns the PID of the process
+     * @return PID of the process
+     */
+    public int GetPid() {
+        return this.currentKernelandProcess.GetPid();
+    }
+    /**
+     * Returns the PID of the process with that name
+     * @param s Name of the process
+     * @return PID of the process with that name
+     */
+    public int GetPidByName(String s) {
+        return nameIdMapping.get(s);
+    }
+
+    /**
+     * Returns the KernelandProcess corresponding to a pid
+     * @param pid The pid of a process
+     * @return KernelandProcess corresponding to a PID
+     */
+    public KernelandProcess GetProcessByPid(int pid) {
+        return this.processIdMapping.get(pid);
     }
 }

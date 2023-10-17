@@ -20,15 +20,18 @@ public class FakeFileSystem implements Device {
     public int Open(String s) {
         System.out.println("Opening fake file, finding location");
         for (int i=0; i<10; i++) {
-            if (fakeFile[i] == null) {
-                // already check filename to see if it is null or empty
-                try {
-                    // after second iteration, file location is still 0
-                    fakeFile[i] = new RandomAccessFile(s, "rw");
-                    System.out.println("Fake file location " + i);
-                    return i;
+            synchronized (this.fakeFile){
+                if (fakeFile[i] == null) {
+                    // already check filename to see if it is null or empty
+                    try {
+                        // after second iteration, file location is still 0
+                        fakeFile[i] = new RandomAccessFile(s, "rw");
+                        System.out.println("Fake file location " + i);
+                        return i;
+                    } catch (FileNotFoundException e) {
+                        throw new RuntimeException(e);
+                    }
                 }
-                catch (FileNotFoundException e) { throw new RuntimeException(e); }
             }
         }
         System.out.println("Fake File: no entries available");
