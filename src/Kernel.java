@@ -139,4 +139,9 @@ public class Kernel implements Device {
 
         return null;
     }
+
+    public void GetMapping(int virtualPageNumber) {
+
+        return;
+    }
 }

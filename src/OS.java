@@ -55,4 +55,6 @@ public class OS {
     public static KernelMessage WaitForMessage() {
         return pKernel.WaitForMessage();
     }
+
+    public static void GetMapping(int virtualPageNumber) { return pKernel.GetMapping(virtualPageNumber); }
 }

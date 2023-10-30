@@ -11,6 +11,7 @@ public class KernelandProcess {
     private final int[] kernelEntries;
     String name;
     LinkedList<KernelMessage> kernelMessage;
+    private int[] virtualPageToPhysicalPage; // Index is virtual page number, value is physical page number
     /**
      * Constructs a KernelandProcess by instantiating a new thread,
      * incrementing the most recent process ID, and declaring it not yet started
@@ -24,7 +25,9 @@ public class KernelandProcess {
         this.kernelEntries = new int[10];
         this.name = up.getClass().getSimpleName();
         this.kernelMessage = new LinkedList<>();
+        this.virtualPageToPhysicalPage = new int[100]; // 100 elements represents 100 pages
         Arrays.fill(kernelEntries, -1); // Fill array with empty entries
+        Arrays.fill(virtualPageToPhysicalPage, -1);
     }
     KernelandProcess(UserlandProcess up, Priority priority) {
         this.pThread = new Thread(up);
@@ -36,6 +39,7 @@ public class KernelandProcess {
         this.name = up.getClass().getSimpleName();
         this.kernelMessage = new LinkedList<>();
         Arrays.fill(kernelEntries, -1); // Fill array with empty entries
+        Arrays.fill(virtualPageToPhysicalPage, -1);
     }
 
     /**
