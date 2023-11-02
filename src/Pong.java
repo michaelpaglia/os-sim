@@ -15,4 +15,14 @@ public class Pong extends UserlandProcess {
             OS.Sleep(50);
         }
     }
+
+    @Override
+    byte Read(int address) {
+        return 0;
+    }
+
+    @Override
+    void Write(int address, byte value) {
+
+    }
 }

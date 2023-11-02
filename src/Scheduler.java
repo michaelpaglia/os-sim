@@ -84,6 +84,7 @@ public class Scheduler {
         }
         if (this.currentKernelandProcess != null) {
             this.currentKernelandProcess.SetTimeout(this.currentKernelandProcess.GetTimeout() + 1);
+            this.currentKernelandProcess.ClearTLB(); // Clear TLB on task switch
             this.currentKernelandProcess.Stop();
 
             if (!this.currentKernelandProcess.IsDone()) {
@@ -91,6 +92,7 @@ public class Scheduler {
                 else AppendKernelandProcess(this.currentKernelandProcess.GetPriority(), this.currentKernelandProcess);
             } else { // process is done so close its open devices
                 // Close all of its open devices
+                this.currentKernelandProcess.ClearMemory(); // Terminate process clears all available memory
                 this.nameIdMapping.remove(this.currentKernelandProcess.GetName());
                 this.processIdMapping.remove(this.currentKernelandProcess.GetPid());
                 int[] entries = this.currentKernelandProcess.GetKernelEntries();
@@ -216,7 +218,6 @@ public class Scheduler {
     public int GetPidByName(String s) {
         return nameIdMapping.get(s);
     }
-
     /**
      * Returns the KernelandProcess corresponding to a pid
      * @param pid The pid of a process

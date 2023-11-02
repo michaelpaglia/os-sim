@@ -56,5 +56,15 @@ public class OS {
         return pKernel.WaitForMessage();
     }
 
-    public static void GetMapping(int virtualPageNumber) { return pKernel.GetMapping(virtualPageNumber); }
+    public static void GetMapping(int virtualPageNumber) { pKernel.GetMapping(virtualPageNumber); }
+
+    public static int AllocateMemory(int size) {
+        if (size % 1024 != 0) return -1; // Not a multiple of 1024, failure
+        return pKernel.AllocateMemory(size);
+    }
+    public static boolean FreeMemory(int pointer, int size) {
+        if ((pointer % 1024 != 0) || (size % 1024 != 0)) return false; // Not a multiple of 1024, failure
+        return pKernel.FreeMemory(pointer, size);
+    }
+
 }

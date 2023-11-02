@@ -1,6 +1,10 @@
 public class HelloWorld extends UserlandProcess {
     @Override
     public void run() {
+        Write(3100, (byte) 5);
+        //Read(3100); // Read from address already in TLB
+        int startAddr = OS.AllocateMemory(3072);
+        OS.FreeMemory(startAddr, 2048);
         while (true) { // infinite loop as per assignment requirements
             System.out.println("Hello World");
 //            int openfd = OS.Open("file test.txt");
@@ -13,29 +17,39 @@ public class HelloWorld extends UserlandProcess {
     }
 
     @Override
-    byte Read(int address) {
-        // The first thing that either of these methods need to do is find the page number.
-        // That is easy – address/page size. Next, they need to look at the TLB to see if this virtual page : physical page mapping is in there.
-        // The TLB (which, of course, normally is in hardware) should be a static array of integer holding 2 virtual addresses and 2 physical addresses.
-        // I would use a [2][2] array, but there are other schemes which work.
-        // If the mapping is found, then we need to calculate the physical address.
-        // Remember that the virtual page is virtual address/1024.
-        // Where we are within the page is virtual address % 1024.
-        // Once we know the physical page number, we multiply it by the page size and add the page offset to get the physical address.
+    public byte Read(int address) {
         int pageNumber = address/1024; // Page size is 1024 or 1KB
         int virtualOffset = address%1024;
-        for (int i=0; i<TLB.length; i++) {
-            if (TLB[i][0] == pageNumber) { // Page number is found, check mapping
-                int physicalPageNumber = TLB[i][1];
-                int physicalAddress = physicalPageNumber*1024+virtualOffset; // Retrieve physical address based on mapping
+        for (int[] ints : TLB) {
+            if (ints[0] == pageNumber) { // Page number is found, check mapping
+                int physicalPageNumber = ints[1];
+                int physicalAddress = physicalPageNumber * 1024 + virtualOffset; // Retrieve physical address based on mapping
+                System.out.println("Mapping is found in TLB: byte value " + memory[physicalAddress]);
                 return memory[physicalAddress];
             }
         }
-        // not found, perform OS call
+        // not found, perform OS call and retry with new TLB
+        OS.GetMapping(pageNumber);
+        return Read(pageNumber);
     }
 
     @Override
-    void Write(int address, byte value) {
+    public void Write(int address, byte value) {
+        int pageNumber = address/1024; // Page size is 1024 or 1KB
+        int virtualOffset = address%1024;
 
+        for (int[] ints : TLB) {
+            if (ints[0] == pageNumber) { // Page number is found, check mapping
+                int physicalPageNumber = ints[1];
+                int physicalAddress = physicalPageNumber * 1024 + virtualOffset; // Retrieve physical address based on mapping
+                System.out.println("TLB mapping is found... " + address);
+                memory[physicalAddress] = value;
+                return;
+            }
+        }
+        // TLB mapping not found, retry
+        System.out.println("TLB mapping is not found, writing to new random spot in memory... " + address);
+        OS.GetMapping(pageNumber);
+        Write(address, value);
     }
 }

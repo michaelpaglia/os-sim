@@ -1,12 +1,15 @@
 public class Kernel implements Device {
     private static Scheduler pScheduler;
     private static VirtualFileSystem VFS;
+    private boolean[] inUseMemoryBlock;
+    private static int nextPage;
     /**
      * Constructs a new scheduler
      */
     public Kernel() throws Exception {
         pScheduler = new Scheduler();
         VFS = new VirtualFileSystem();
+        inUseMemoryBlock = new boolean[100]; // All values are initially False
     }
     /**
      * Calls Scheduler's CreateProcess()
@@ -140,8 +143,77 @@ public class Kernel implements Device {
         return null;
     }
 
+    /**
+     * Maps a virtual page number to a physical page number in TLB
+     * @param virtualPageNumber Some virtual page number to map
+     */
     public void GetMapping(int virtualPageNumber) {
+        KernelandProcess kp = pScheduler.GetCurrentProcess();
+        System.out.println("Setting the mapping of Kernel virtual page " + virtualPageNumber);
+        kp.SetRandomTLB(virtualPageNumber);
+    }
 
-        return;
+    /**
+     * Allocates memory to inUseMemoryBlock by calculating pages needed, the start page in contiguous memory; maps physical page number
+     * @param size Amount of memory (multiple of 1024) to allocate
+     * @return Start virtual address in contiguous memory
+     */
+    public int AllocateMemory(int size) {
+        int pagesNeeded = size/1024;
+        int startPage = FindAvailableMemory(pagesNeeded);
+        KernelandProcess kp = pScheduler.GetCurrentProcess();
+
+        if (startPage == -1) return -1; // Failed to allocate memory
+        else if (startPage + pagesNeeded <= inUseMemoryBlock.length) {
+            System.out.println("Found contiguous block of memory at starting page " + startPage + ", we need " + pagesNeeded + " pages");
+            for (int i=startPage; i < startPage + pagesNeeded; i++) {
+                inUseMemoryBlock[i] = true;
+                kp.SetProcessPhysicalPageNumber(i, kp.GetPhysicalPageNumber(i)); // set correct page number in process' array
+            }
+        }
+        return startPage*1024; // Starting virtual address
+    }
+
+    /**
+     * Frees allocated memory, removes mapping from process array
+     * @param pointer Starting virtual address to free
+     * @param size Amount of memory to free
+     * @return True if memory was freed successfully
+     */
+    public boolean FreeMemory(int pointer, int size) {
+        int virtualPageIndex = pointer/1024; // Gives page number in array
+        int pagesToFree = size/1024; // Number of pages to free
+        KernelandProcess kp = pScheduler.GetCurrentProcess();
+
+        // Set all memory in range [virtualPageIndex, virtualPageIndex+pagesToFree] to false
+        for (int i=virtualPageIndex; i < virtualPageIndex+pagesToFree; i++) {
+            System.out.println("Attempting to free virtual page index " + virtualPageIndex + " with # pages to free " + pagesToFree);
+            inUseMemoryBlock[i] = false;
+            kp.SetProcessPhysicalPageNumber(i, -1); // Remove from process array, set back to -1
+        }
+        return true; // Memory successfully freed
+    }
+
+    /**
+     * Searches through the inUseMemoryBlock to find /pages/ of free space
+     * @param pages Amount of pages needed in memory
+     * @return Index in memory block to start; -1 on failure (all memory is used/not enough window space)
+     */
+    private int FindAvailableMemory(int pages) {
+        int idx = -1;
+        int window = 0;
+        for (int i=0; i < inUseMemoryBlock.length; i++) {
+            // True = memory is not available
+            // False = memory is available
+            if (!inUseMemoryBlock[i]) { // False, memory is available
+                if (idx == -1) idx = i;
+                window++;
+            } else { // Memory is not available, reset
+                idx = -1;
+                window = 0;
+            }
+            if (window >= pages) return idx; // Window size is big enough to fit the required pages
+        }
+        return -1;
     }
 }
