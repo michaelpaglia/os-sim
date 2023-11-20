@@ -2,8 +2,8 @@ import java.util.Arrays;
 public class VirtualFileSystem implements Device {
     private final Device[] device;
     private final int[] id;
-    private FakeFileSystem ffs;
-    private RandomDevice rd;
+    private static FakeFileSystem ffs;
+    private static RandomDevice rd;
     public VirtualFileSystem() throws Exception {
         this.device = new Device[10];
         this.id = new int[10];
@@ -110,5 +110,11 @@ public class VirtualFileSystem implements Device {
             if (newId == -1) return 0;
             return dev.Write(newId, data);
         }
+    }
+    public FakeFileSystem GetFFS() {
+        return ffs;
+    }
+    public RandomDevice GetRandomDevice() {
+        return rd;
     }
 }

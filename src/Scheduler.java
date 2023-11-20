@@ -226,4 +226,52 @@ public class Scheduler {
     public KernelandProcess GetProcessByPid(int pid) {
         return this.processIdMapping.get(pid);
     }
+    public KernelandProcess GetRandomProcess() {
+        List<List<KernelandProcess>> nonEmptyLists = new ArrayList<>();
+        if (!realTimeKernelandProcess.isEmpty()) nonEmptyLists.add(realTimeKernelandProcess);
+        if (!backgroundKernelandProcess.isEmpty()) nonEmptyLists.add(backgroundKernelandProcess);
+        if (!interactivePriorityKernelandProcess.isEmpty()) nonEmptyLists.add(interactivePriorityKernelandProcess);
+        List<KernelandProcess> chooseRandomNonEmptyList = nonEmptyLists.get(new Random().nextInt(nonEmptyLists.size()));
+        KernelandProcess randomProcess;
+        int pageNumberToSwap;
+        // Get random process and find a page that has physical memory.
+        // If there are none, pick a different process and repeat until a new page is found
+        do {
+            randomProcess = chooseRandomNonEmptyList.get(new Random().nextInt(chooseRandomNonEmptyList.size()));
+            System.out.println(randomProcess.virtualPageToPhysicalPage);
+            pageNumberToSwap = FindPhysicalMemory(randomProcess); // Will be -1 if can't find page
+        }while(pageNumberToSwap==-1);
+        int oldRandomProcessPhysicalPage = currentKernelandProcess.virtualPageToPhysicalPage[pageNumberToSwap].physicalPageNumber;
+        System.out.println("Swapping values of pages, old page="+oldRandomProcessPhysicalPage+" and new page index="+pageNumberToSwap);
+        currentKernelandProcess.virtualPageToPhysicalPage[pageNumberToSwap].physicalPageNumber = randomProcess.virtualPageToPhysicalPage[pageNumberToSwap].physicalPageNumber;
+        // Write victim page to disk and assign new block of swap file if there isn't already one
+        kernel.GetVFS().GetFFS().Write(0, new byte[randomProcess.virtualPageToPhysicalPage[pageNumberToSwap].physicalPageNumber*1024]);
+        // Swap
+        randomProcess.virtualPageToPhysicalPage[pageNumberToSwap].physicalPageNumber = randomProcess.virtualPageToPhysicalPage[pageNumberToSwap].diskPageNumber;
+        // Set victim physical page to -1
+        randomProcess.virtualPageToPhysicalPage[pageNumberToSwap].physicalPageNumber = -1;
+        if (oldRandomProcessPhysicalPage != currentKernelandProcess.virtualPageToPhysicalPage[pageNumberToSwap].physicalPageNumber) {
+            // New physical page number
+            if (currentKernelandProcess.virtualPageToPhysicalPage[pageNumberToSwap].diskPageNumber != -1) {
+                // Load old data in and populate physical page
+                System.out.println("Loading old data in and populating physical page");
+                kernel.GetVFS().GetFFS().Write(0, kernel.GetVFS().Read(0, oldRandomProcessPhysicalPage*1024));
+            } else {
+                // Populate memory with zeros
+                System.out.println("Populating with zeros");
+                kernel.GetVFS().GetFFS().Write(0, new byte[0]);
+            }
+        }
+        nonEmptyLists.clear();
+        return randomProcess;
+    }
+    private int FindPhysicalMemory(KernelandProcess randomProcess) {
+        for (int i = 0; i < randomProcess.virtualPageToPhysicalPage.length; i++) {
+            System.out.println(randomProcess.virtualPageToPhysicalPage[i].physicalPageNumber);
+            if (randomProcess.virtualPageToPhysicalPage[i].physicalPageNumber != -1) {
+                return i;
+            }
+        }
+        return -1;
+    }
 }

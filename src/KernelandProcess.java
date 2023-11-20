@@ -11,7 +11,7 @@ public class KernelandProcess {
     private final int[] kernelEntries;
     String name;
     LinkedList<KernelMessage> kernelMessage;
-    private int[] virtualPageToPhysicalPage; // Index is virtual page number, value is physical page number
+    public VirtualToPhysicalMapping[] virtualPageToPhysicalPage; // Index is virtual page number, value is physical page number
     private UserlandProcess userlandProcess;
     /**
      * Constructs a KernelandProcess by instantiating a new thread,
@@ -26,10 +26,10 @@ public class KernelandProcess {
         this.kernelEntries = new int[10];
         this.name = up.getClass().getSimpleName();
         this.kernelMessage = new LinkedList<>();
-        this.virtualPageToPhysicalPage = new int[100]; // 100 elements represents 100 pages
+        this.virtualPageToPhysicalPage = new VirtualToPhysicalMapping[100]; // 100 elements represents 100 pages
         this.userlandProcess = up;
         Arrays.fill(kernelEntries, -1); // Fill array with empty entries
-        Arrays.fill(virtualPageToPhysicalPage, -1);
+        //Arrays.fill(virtualPageToPhysicalPage, -1);
     }
     KernelandProcess(UserlandProcess up, Priority priority) {
         this.pThread = new Thread(up);
@@ -40,9 +40,9 @@ public class KernelandProcess {
         this.kernelEntries = new int[10];
         this.name = up.getClass().getSimpleName();
         this.kernelMessage = new LinkedList<>();
-        this.virtualPageToPhysicalPage = new int[100]; // 100 elements represents 100 pages
+        this.virtualPageToPhysicalPage = new VirtualToPhysicalMapping[100]; // 100 elements represents 100 pages
         Arrays.fill(kernelEntries, -1); // Fill array with empty entries
-        Arrays.fill(virtualPageToPhysicalPage, -1);
+        //Arrays.fill(virtualPageToPhysicalPage, -1);
     }
 
     /**
@@ -136,6 +136,10 @@ public class KernelandProcess {
         userlandProcess.TLB[randomTLBIndex][0] = virtualPageNumber;
         userlandProcess.TLB[randomTLBIndex][1] = randomPhysicalPageNumber;
     }
+    void PreserveTLB(int virtualPageNumber, int physicalPageNumber) {
+        if (userlandProcess.TLB[0][0] == virtualPageNumber) { userlandProcess.TLB[0][1] = physicalPageNumber; }
+        else userlandProcess.TLB[1][1] = physicalPageNumber;
+    }
 
     /**
      * Map a virtual page number (index) to a physical page number (value) in Page Table
@@ -143,7 +147,8 @@ public class KernelandProcess {
      * @param physicalPageNumber Some physical page number to map
      */
     void SetProcessPhysicalPageNumber(int virtualPageNumber, int physicalPageNumber) {
-        virtualPageToPhysicalPage[virtualPageNumber] = physicalPageNumber;
+        System.out.println("Virtual page number: " + virtualPageNumber + ". Physical page number: " + physicalPageNumber);
+        virtualPageToPhysicalPage[virtualPageNumber].physicalPageNumber = physicalPageNumber;
     }
 
     /**
@@ -165,7 +170,6 @@ public class KernelandProcess {
      * Clears the TLB on a task switch
      */
     void ClearTLB() {
-        System.out.println("Clearing TLB");
         Arrays.fill(userlandProcess.TLB[0], -1);
         Arrays.fill(userlandProcess.TLB[1], -1);
     }

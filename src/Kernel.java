@@ -1,8 +1,7 @@
 public class Kernel implements Device {
     private static Scheduler pScheduler;
     private static VirtualFileSystem VFS;
-    private boolean[] inUseMemoryBlock;
-    private static int nextPage;
+    private final boolean[] inUseMemoryBlock;
     /**
      * Constructs a new scheduler
      */
@@ -149,8 +148,30 @@ public class Kernel implements Device {
      */
     public void GetMapping(int virtualPageNumber) {
         KernelandProcess kp = pScheduler.GetCurrentProcess();
-        System.out.println("Setting the mapping of Kernel virtual page " + virtualPageNumber);
+        if (kp.virtualPageToPhysicalPage[virtualPageNumber].physicalPageNumber == -1) {
+            System.out.println("Virtual page to physical page mapping equals -1");
+            int available = -1; // No physical pages available
+            // Find physical page in "in use" array and assign it
+            for (int i=0; i< inUseMemoryBlock.length; i++) {
+                if (!inUseMemoryBlock[i]) {
+                    System.out.println("---Assigning page number in memory map index " + i);
+                    kp.SetProcessPhysicalPageNumber(virtualPageNumber, i);
+                    inUseMemoryBlock[i] = true; // Found a physical page,so skip next if clause
+                    available = 0;
+                    break;
+                }
+            }
+            if (available == -1) {
+                System.out.println("Couldn't find a page number, swapping one out");
+                pScheduler.GetRandomProcess();
+            }
+        }
         kp.SetRandomTLB(virtualPageNumber);
+        System.out.println("Checking to see if virtual page number already has mapping in TLB...");
+        if (kp.virtualPageToPhysicalPage[virtualPageNumber].physicalPageNumber != -1) {
+            System.out.println("Mapping already exists, copying into TLB");
+            kp.PreserveTLB(virtualPageNumber, kp.virtualPageToPhysicalPage[virtualPageNumber].physicalPageNumber);
+        }
     }
 
     /**
@@ -160,15 +181,17 @@ public class Kernel implements Device {
      */
     public int AllocateMemory(int size) {
         int pagesNeeded = size/1024;
-        int startPage = FindAvailableMemory(pagesNeeded);
         KernelandProcess kp = pScheduler.GetCurrentProcess();
+        int startPage = FindAvailableMemory(kp, pagesNeeded);
 
         if (startPage == -1) return -1; // Failed to allocate memory
         else if (startPage + pagesNeeded <= inUseMemoryBlock.length) {
             System.out.println("Found contiguous block of memory at starting page " + startPage + ", we need " + pagesNeeded + " pages");
             for (int i=startPage; i < startPage + pagesNeeded; i++) {
                 inUseMemoryBlock[i] = true;
-                kp.SetProcessPhysicalPageNumber(i, kp.GetPhysicalPageNumber(i)); // set correct page number in process' array
+                System.out.println("Allocating new Virtual to Physical Mapping at " + i);
+                kp.virtualPageToPhysicalPage[i] = new VirtualToPhysicalMapping(); // create new instances of VirtualToPhysicalMapping for every page
+                //kp.SetProcessPhysicalPageNumber(i, kp.GetPhysicalPageNumber(i)); // set correct page number in process' array
             }
         }
         return startPage*1024; // Starting virtual address
@@ -188,8 +211,12 @@ public class Kernel implements Device {
         // Set all memory in range [virtualPageIndex, virtualPageIndex+pagesToFree] to false
         for (int i=virtualPageIndex; i < virtualPageIndex+pagesToFree; i++) {
             System.out.println("Attempting to free virtual page index " + virtualPageIndex + " with # pages to free " + pagesToFree);
-            inUseMemoryBlock[i] = false;
-            kp.SetProcessPhysicalPageNumber(i, -1); // Remove from process array, set back to -1
+            if (kp.virtualPageToPhysicalPage[i].physicalPageNumber != -1) {
+                inUseMemoryBlock[i] = false;
+                kp.SetProcessPhysicalPageNumber(i, -1); // Remove from process array, set back to -1
+            }
+            System.out.println("Clearing virtual to physical page mapping");
+            kp.virtualPageToPhysicalPage[i] = null; // Set array entry for each block back to null
         }
         return true; // Memory successfully freed
     }
@@ -199,21 +226,22 @@ public class Kernel implements Device {
      * @param pages Amount of pages needed in memory
      * @return Index in memory block to start; -1 on failure (all memory is used/not enough window space)
      */
-    private int FindAvailableMemory(int pages) {
+    private int FindAvailableMemory(KernelandProcess kp, int pages) {
         int idx = -1;
         int window = 0;
-        for (int i=0; i < inUseMemoryBlock.length; i++) {
-            // True = memory is not available
-            // False = memory is available
-            if (!inUseMemoryBlock[i]) { // False, memory is available
+        for (int i=0; i<kp.virtualPageToPhysicalPage.length; i++) {
+            if (!inUseMemoryBlock[i]) { // Memory is available here
                 if (idx == -1) idx = i;
                 window++;
-            } else { // Memory is not available, reset
+            } else {
                 idx = -1;
                 window = 0;
             }
-            if (window >= pages) return idx; // Window size is big enough to fit the required pages
+            if (window >= pages) return idx; // Window size is large enough
         }
-        return -1;
+        return -1; // Failure
+    }
+    public VirtualFileSystem GetVFS() {
+        return VFS;
     }
 }

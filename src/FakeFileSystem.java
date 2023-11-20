@@ -92,7 +92,7 @@ public class FakeFileSystem implements Device {
      */
     @Override
     public int Write(int id, byte[] data) {
-        System.out.println("Writing to a fake file " + id + " " + fakeFile[id]); // this is the problem... it will always be 0
+        System.out.println("Writing to a fake file " + id + " " + fakeFile[id]);
         try {
             fakeFile[id].write(data);
             System.out.println("Wrote " + data.length + " bytes to fake file");

@@ -3,6 +3,7 @@ enum Priority {
 }
 public class OS {
     static Kernel pKernel; // reference to one and only instance of Kernel
+    static int page;
 
     /**
      * Populates the Kernel member with a new instance and calls CreateProcess on init
@@ -10,6 +11,9 @@ public class OS {
      */
     public static void Startup(UserlandProcess init) throws Exception {
         pKernel = new Kernel();
+        VirtualFileSystem vfs = pKernel.GetVFS();
+        FakeFileSystem ffs = vfs.GetFFS();
+        page = ffs.Open("swapFile");
         CreateProcess(init);
     }
     /**
